@@ -22,14 +22,14 @@ function exportSchedulePDF(scheduleData, year, semester) {
     doc.setLineWidth(0.5);
     doc.line(20, 30, pageWidth - 20, 30);
 
-    const headers = [['No', 'Hari / Tanggal', 'Liturgos', 'Kolektan', 'Singer']];
+    const headers = [['No', 'Hari / Tanggal', 'Liturgos', 'Singer', 'Kolektan']];
 
     const rows = scheduleData.map((row, index) => [
         index + 1,
         formatDateForPDF(row.service_date),
         row.liturgos || '-',
-        Array.isArray(row.kolektan) ? row.kolektan.join('\n') : (row.kolektan || '-'),
-        Array.isArray(row.singer) ? row.singer.join('\n') : (row.singer || '-')
+        Array.isArray(row.singer) ? row.singer.join('\n') : (row.singer || '-'),
+        Array.isArray(row.kolektan) ? row.kolektan.join('\n') : (row.kolektan || '-')
     ]);
 
     doc.autoTable({
@@ -56,8 +56,8 @@ function exportSchedulePDF(scheduleData, year, semester) {
             0: { halign: 'center', cellWidth: 12 },
             1: { cellWidth: 55 },
             2: { cellWidth: 42 },
-            3: { cellWidth: 55 },
-            4: { cellWidth: 70 }
+            3: { cellWidth: 70 },
+            4: { cellWidth: 55 }
         },
         alternateRowStyles: {
             fillColor: [247, 250, 252]
@@ -113,5 +113,7 @@ function formatDateForPDF(dateStr) {
         'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
         'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
-    return 'Minggu, ' + day + ' ' + months[month] + ' ' + year;
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const dayName = days[new Date(year, month, day).getDay()];
+    return dayName + ', ' + day + ' ' + months[month] + ' ' + year;
 }

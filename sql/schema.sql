@@ -8,8 +8,21 @@ CREATE TABLE IF NOT EXISTS public.members (
     can_liturgos  BOOLEAN DEFAULT false,
     can_kolektan  BOOLEAN DEFAULT false,
     can_singer    BOOLEAN DEFAULT false,
+    partner_id    UUID REFERENCES public.members(id) ON DELETE SET NULL,
     created_at    TIMESTAMPTZ DEFAULT now()
 );
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'members' 
+        AND column_name = 'partner_id'
+    ) THEN
+        ALTER TABLE public.members ADD COLUMN partner_id UUID REFERENCES public.members(id) ON DELETE SET NULL;
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS public.schedules (
     id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -35,7 +48,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     created_at  TIMESTAMPTZ DEFAULT now()
 );
 
--- Foreign Key migration for existing table (ON DELETE CASCADE -> ON DELETE RESTRICT)
+
 DO $$
 BEGIN
     IF EXISTS (

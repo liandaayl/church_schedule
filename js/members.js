@@ -32,7 +32,7 @@ function renderMembersTable(members) {
     if (countEl) countEl.textContent = members.length + ' anggota';
 
     if (members.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:32px;">Belum ada data anggota. Klik "Tambah Anggota" untuk memulai.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">Belum ada data anggota. Klik "Tambah Anggota" untuk memulai.</td></tr>';
         return;
     }
 
@@ -46,6 +46,9 @@ function renderMembersTable(members) {
         if (m.can_singer) capabilities += '<span class="tag tag-singer">Singer</span>';
         if (!capabilities) capabilities = '<span class="text-muted">-</span>';
 
+        const partner = m.partner_id ? allMembers.find(p => p.id === m.partner_id) : null;
+        const partnerName = partner ? escapeHtml(partner.name) : '<span class="text-muted">-</span>';
+
         return '<tr>' +
             '<td>' + (i + 1) + '</td>' +
             '<td><strong>' + escapeHtml(m.name) + '</strong></td>' +
@@ -53,6 +56,7 @@ function renderMembersTable(members) {
             '<td>' + (m.can_liturgos ? '<span class="text-success">✓</span>' : '<span class="text-muted">-</span>') + '</td>' +
             '<td>' + (m.can_kolektan ? '<span class="text-success">✓</span>' : '<span class="text-muted">-</span>') + '</td>' +
             '<td>' + (m.can_singer ? '<span class="text-success">✓</span>' : '<span class="text-muted">-</span>') + '</td>' +
+            '<td>' + partnerName + '</td>' +
             '<td><div class="table-actions">' +
                 '<button class="btn btn-sm btn-icon btn-secondary" onclick="editMember(\'' + m.id + '\')" title="Edit">' +
                     '<span class="material-icons-outlined" style="font-size:16px;">edit</span></button>' +
@@ -133,8 +137,17 @@ function openMemberModal(member = null) {
     const cbL = document.getElementById('cbLiturgos');
     const cbK = document.getElementById('cbKolektan');
     const cbS = document.getElementById('cbSinger');
+    const partnerSelect = document.getElementById('memberPartner');
 
     if (!modal) return;
+
+    if (partnerSelect) {
+        partnerSelect.innerHTML = '<option value="">— Tidak ada / Belum dipilih —</option>' +
+            allMembers
+                .filter(m => !member || m.id !== member.id)
+                .map(m => '<option value="' + m.id + '"' + (member && member.partner_id === m.id ? ' selected' : '') + '>' + escapeHtml(m.name) + ' (' + m.gender + ')</option>')
+                .join('');
+    }
 
     if (member) {
         title.textContent = 'Edit Anggota';
@@ -144,6 +157,7 @@ function openMemberModal(member = null) {
         cbL.checked = member.can_liturgos;
         cbK.checked = member.can_kolektan;
         cbS.checked = member.can_singer;
+        if (partnerSelect) partnerSelect.value = member.partner_id || '';
     } else {
         title.textContent = 'Tambah Anggota';
         idField.value = '';
@@ -152,6 +166,7 @@ function openMemberModal(member = null) {
         cbL.checked = false;
         cbK.checked = false;
         cbS.checked = false;
+        if (partnerSelect) partnerSelect.value = '';
     }
 
     modal.classList.add('active');
@@ -182,6 +197,7 @@ async function saveMember(e) {
     const can_liturgos = document.getElementById('cbLiturgos').checked;
     const can_kolektan = document.getElementById('cbKolektan').checked;
     const can_singer = document.getElementById('cbSinger').checked;
+    const partner_id = document.getElementById('memberPartner')?.value || null;
 
     if (!name) {
         showToast('Nama tidak boleh kosong', 'error');
@@ -192,16 +208,27 @@ async function saveMember(e) {
         return;
     }
 
-    const data = { name, gender, can_liturgos, can_kolektan, can_singer };
+    const data = { name, gender, can_liturgos, can_kolektan, can_singer, partner_id };
 
     try {
         if (id) {
+            const oldMember = allMembers.find(m => m.id === id);
             const { error } = await supabaseClient.from('members').update(data).eq('id', id);
             if (error) throw error;
+
+            if (oldMember && oldMember.partner_id && oldMember.partner_id !== partner_id) {
+                await supabaseClient.from('members').update({ partner_id: null }).eq('id', oldMember.partner_id);
+            }
+            if (partner_id) {
+                await supabaseClient.from('members').update({ partner_id: id }).eq('id', partner_id);
+            }
             showToast('Anggota berhasil diperbarui', 'success');
         } else {
-            const { error } = await supabaseClient.from('members').insert(data);
+            const { data: inserted, error } = await supabaseClient.from('members').insert(data).select().single();
             if (error) throw error;
+            if (partner_id && inserted) {
+                await supabaseClient.from('members').update({ partner_id: inserted.id }).eq('id', partner_id);
+            }
             showToast('Anggota berhasil ditambahkan', 'success');
         }
 
@@ -217,6 +244,11 @@ async function confirmDeleteMember() {
     if (!currentDeleteId) return;
 
     try {
+        const memberToDelete = allMembers.find(m => m.id === currentDeleteId);
+        if (memberToDelete?.partner_id) {
+            await supabaseClient.from('members').update({ partner_id: null }).eq('id', memberToDelete.partner_id);
+        }
+
         const { error } = await supabaseClient.from('members').delete().eq('id', currentDeleteId);
         if (error) {
             if (error.code === '23503' || error.message?.includes('violates foreign key constraint')) {

@@ -1,44 +1,105 @@
-function getSundaysInPeriod(year, semester) {
-    const startMonth = semester === 1 ? 0 : 6;
-    const endMonth = semester === 1 ? 5 : 11;
+function getEasterSunday(year) {
+    const a = year % 19;
+    const b = Math.floor(year / 100);
+    const c = year % 100;
+    const d = Math.floor(b / 4);
+    const e = b % 4;
+    const f = Math.floor((b + 8) / 25);
+    const g = Math.floor((b - f + 1) / 3);
+    const h = (19 * a + b - d - g + 15) % 30;
+    const i = Math.floor(c / 4);
+    const k = c % 4;
+    const l = (32 + 2 * e + 2 * i - h - k) % 7;
+    const m = Math.floor((a + 11 * h + 22 * l) / 451);
+    const month = Math.floor((h + l - 7 * m + 114) / 31);
+    const day = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(year, month - 1, day);
+}
 
-    const sundays = [];
-    const date = new Date(year, startMonth, 1);
-
-    while (date.getDay() !== 0) {
-        date.setDate(date.getDate() + 1);
-    }
-
-    const endDate = new Date(year, endMonth + 1, 0);
-    while (date <= endDate) {
-        sundays.push(new Date(date));
-        date.setDate(date.getDate() + 7);
-    }
-
-    return sundays;
+function formatDate(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
 }
 
 function toDateString(d) {
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return yyyy + '-' + mm + '-' + dd;
+    if (typeof d === 'string') return d.split('T')[0];
+    return formatDate(d);
 }
 
-function scoreCandidate(member, assignmentCounts, lastAssignmentDate, currentDate, totalMembers, totalAssignmentsSoFar) {
+function getAllAnnualServiceDates(year) {
+    const datesMap = new Map();
+
+    function addDate(d, label) {
+        const key = formatDate(d);
+        if (!datesMap.has(key)) {
+            datesMap.set(key, { date: new Date(d), dateStr: key, label });
+        } else {
+            datesMap.get(key).label += ' & ' + label;
+        }
+    }
+
+    const curr = new Date(year, 0, 1);
+    while (curr.getFullYear() === year) {
+        if (curr.getDay() === 0) {
+            addDate(curr, 'Ibadah Minggu');
+        }
+        curr.setDate(curr.getDate() + 1);
+    }
+
+    addDate(new Date(year, 0, 1), 'Ibadah Tahun Baru');
+
+    const easter = getEasterSunday(year);
+    const goodFriday = new Date(easter);
+    goodFriday.setDate(easter.getDate() - 2);
+    addDate(goodFriday, 'Jumat Agung');
+
+    const easterMonday = new Date(easter);
+    easterMonday.setDate(easter.getDate() + 1);
+    addDate(easterMonday, 'Senin Paskah');
+
+    addDate(new Date(year, 11, 24), 'Ibadah Menjelang Natal');
+    addDate(new Date(year, 11, 25), 'Hari Natal');
+    addDate(new Date(year, 11, 26), 'Ibadah Setelah Natal');
+    addDate(new Date(year, 11, 31), 'Ibadah Akhir Tahun');
+
+    const allDates = Array.from(datesMap.values()).sort((a, b) => a.date - b.date);
+    allDates.forEach((item, idx) => {
+        item.annualIndex = idx;
+        item.liturgosGender = (idx % 3 === 0) ? 'L' : 'P';
+    });
+
+    return allDates;
+}
+
+function getServiceDatesInPeriod(year, semester) {
+    const all = getAllAnnualServiceDates(year);
+    return all.filter(d => semester === 1 ? d.date.getMonth() < 6 : d.date.getMonth() >= 6);
+}
+
+function scoreCandidate(member, role, assignmentCounts, lastAssignmentDate, currentDate, totalMembers, totalAssignmentsSoFar, dateAssignments, dateStr, previousDateRoles) {
     let score = 0;
 
     const myCount = assignmentCounts[member.id] || 0;
     const avgCount = totalMembers > 0 ? totalAssignmentsSoFar / totalMembers : 0;
-    const countDiff = avgCount - myCount;
-    score += countDiff * 12;
+    score += (avgCount - myCount) * 12;
 
     const lastDate = lastAssignmentDate[member.id];
     if (lastDate) {
         const daysSince = (currentDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
         score += Math.min(daysSince / 7, 8) * 4;
+        if (daysSince <= 2) score -= 50;
     } else {
         score += 32;
+    }
+
+    if (member.partner_id && dateAssignments[dateStr] && dateAssignments[dateStr].has(member.partner_id)) {
+        score -= 500;
+    }
+
+    if (previousDateRoles[role] && previousDateRoles[role].has(member.id)) {
+        score -= 1000;
     }
 
     const capCount = (member.can_liturgos ? 1 : 0) + (member.can_kolektan ? 1 : 0) + (member.can_singer ? 1 : 0);
@@ -46,12 +107,6 @@ function scoreCandidate(member, assignmentCounts, lastAssignmentDate, currentDat
     score += Math.random() * 2;
 
     return score;
-}
-
-function scoreRoleCandidate(member, role, assignmentCounts, lastAssignmentDate, currentDate, totalMembers, totalAssignmentsSoFar, roleHistory) {
-    const repeats = roleHistory[member.id]?.[role] || 0;
-    const baseScore = scoreCandidate(member, assignmentCounts, lastAssignmentDate, currentDate, totalMembers, totalAssignmentsSoFar);
-    return baseScore - (repeats * 1000);
 }
 
 async function generateSchedule(year, semester, onProgress) {
@@ -77,300 +132,283 @@ async function generateSchedule(year, semester, onProgress) {
     const kolektanCandidates = members.filter(m => m.can_kolektan);
     const singerCandidates = members.filter(m => m.can_singer);
 
+    const liturgosMale = liturgosCandidates.filter(m => m.gender === 'L');
+    const liturgosFemale = liturgosCandidates.filter(m => m.gender === 'P');
     const kolektanMale = kolektanCandidates.filter(m => m.gender === 'L');
     const kolektanFemale = kolektanCandidates.filter(m => m.gender === 'P');
     const singerMale = singerCandidates.filter(m => m.gender === 'L');
     const singerFemale = singerCandidates.filter(m => m.gender === 'P');
 
-    if (liturgosCandidates.length === 0) throw new Error('Tidak ada anggota yang bisa menjadi Liturgos.');
-    if (kolektanMale.length === 0) warnings.push({ type: 'warning', date: null, role: 'Kolektan', message: 'Tidak ada Kolektan laki-laki. Aturan gender mungkin tidak terpenuhi.' });
-    if (kolektanFemale.length === 0) warnings.push({ type: 'warning', date: null, role: 'Kolektan', message: 'Tidak ada Kolektan perempuan. Aturan gender mungkin tidak terpenuhi.' });
-    if (singerMale.length === 0) warnings.push({ type: 'warning', date: null, role: 'Singer', message: 'Tidak ada Singer laki-laki. Aturan gender mungkin tidak terpenuhi.' });
-    if (singerFemale.length === 0) warnings.push({ type: 'warning', date: null, role: 'Singer', message: 'Tidak ada Singer perempuan. Aturan gender mungkin tidak terpenuhi.' });
+    if (liturgosMale.length === 0) warnings.push({ type: 'warning', date: null, role: 'Liturgos', message: 'Tidak ada Liturgos laki-laki. Pola gender L–P–P mungkin tidak terpenuhi.' });
+    if (liturgosFemale.length === 0) warnings.push({ type: 'warning', date: null, role: 'Liturgos', message: 'Tidak ada Liturgos perempuan. Pola gender L–P–P mungkin tidak terpenuhi.' });
+    if (kolektanMale.length === 0) warnings.push({ type: 'warning', date: null, role: 'Kolektan', message: 'Tidak ada Kolektan laki-laki. Aturan gender (1L + 1P) tidak terpenuhi.' });
+    if (kolektanFemale.length === 0) warnings.push({ type: 'warning', date: null, role: 'Kolektan', message: 'Tidak ada Kolektan perempuan. Aturan gender (1L + 1P) tidak terpenuhi.' });
+    if (singerMale.length === 0) warnings.push({ type: 'warning', date: null, role: 'Singer', message: 'Tidak ada Singer laki-laki. Aturan gender (2P + 1L) tidak terpenuhi.' });
+    if (singerFemale.length < 2) warnings.push({ type: 'warning', date: null, role: 'Singer', message: 'Kandidat Singer perempuan kurang dari 2. Aturan gender (2P + 1L) tidak terpenuhi.' });
 
-    const sundays = getSundaysInPeriod(year, semester);
-    progress(15, 'Menyiapkan jadwal...', sundays.length + ' hari Minggu dalam periode');
+    const serviceDates = getServiceDatesInPeriod(year, semester);
+    progress(15, 'Menyiapkan tanggal pelayanan...', serviceDates.length + ' tanggal pelayanan dalam periode ini');
 
     const assignments = [];
     const assignmentCounts = {};
     const lastAssignmentDate = {};
-    const roleHistory = {};
     const dateAssignments = {};
+    let previousDateRoles = { Liturgos: new Set(), Kolektan: new Set(), Singer: new Set() };
 
     members.forEach(m => {
         assignmentCounts[m.id] = 0;
-        roleHistory[m.id] = { Liturgos: 0, Kolektan: 0, Singer: 0 };
     });
 
-    for (let si = 0; si < sundays.length; si++) {
-        const sunday = sundays[si];
-        const dateStr = toDateString(sunday);
+    if (semester === 2) {
+        try {
+            const { data: sem1 } = await supabaseClient
+                .from('schedules')
+                .select('id')
+                .eq('year', year)
+                .eq('semester', 1)
+                .maybeSingle();
+
+            if (sem1) {
+                const { data: sem1Assignments } = await supabaseClient
+                    .from('schedule_assignments')
+                    .select('*, members(id, name, gender)')
+                    .eq('schedule_id', sem1.id)
+                    .order('service_date');
+
+                if (sem1Assignments && sem1Assignments.length > 0) {
+                    sem1Assignments.forEach(a => {
+                        assignmentCounts[a.member_id] = (assignmentCounts[a.member_id] || 0) + 1;
+                        lastAssignmentDate[a.member_id] = new Date(a.service_date);
+                    });
+
+                    const lastDate = sem1Assignments[sem1Assignments.length - 1].service_date;
+                    const lastDateAssgns = sem1Assignments.filter(a => a.service_date === lastDate);
+                    lastDateAssgns.forEach(a => {
+                        if (previousDateRoles[a.role]) previousDateRoles[a.role].add(a.member_id);
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn('Gagal membaca riwayat semester 1:', e);
+        }
+    }
+
+    for (let si = 0; si < serviceDates.length; si++) {
+        const sDate = serviceDates[si];
+        const dateStr = sDate.dateStr;
         dateAssignments[dateStr] = new Set();
+        const currentDateRoles = { Liturgos: new Set(), Kolektan: new Set(), Singer: new Set() };
 
-        const pct = 20 + Math.round((si / sundays.length) * 70);
-        progress(pct, 'Menjadwalkan minggu ' + (si + 1) + ' dari ' + sundays.length + '...', dateStr);
+        const pct = 20 + Math.round((si / serviceDates.length) * 70);
+        progress(pct, 'Menjadwalkan ' + (si + 1) + ' dari ' + serviceDates.length + '...', sDate.label + ' (' + dateStr + ')');
 
-        if (si % 3 === 0) await new Promise(r => setTimeout(r, 30));
+        if (si % 3 === 0) await new Promise(r => setTimeout(r, 20));
 
-        const liturgosResult = assignRole(
-            'Liturgos', 1, null,
-            liturgosCandidates, members, sunday, dateStr,
-            dateAssignments, assignmentCounts, lastAssignmentDate, roleHistory, warnings
-        );
-        liturgosResult.forEach(a => {
-            assignments.push(a);
-            dateAssignments[dateStr].add(a.member_id);
-            assignmentCounts[a.member_id] = (assignmentCounts[a.member_id] || 0) + 1;
-            lastAssignmentDate[a.member_id] = sunday;
-            roleHistory[a.member_id].Liturgos++;
-        });
+        const totalAssignments = Object.values(assignmentCounts).reduce((a, b) => a + b, 0);
 
-        const kolektanResult = assignKolektan(
-            kolektanCandidates, members, sunday, dateStr,
-            dateAssignments, assignmentCounts, lastAssignmentDate, roleHistory, warnings
-        );
-        kolektanResult.forEach(a => {
-            assignments.push(a);
-            dateAssignments[dateStr].add(a.member_id);
-            assignmentCounts[a.member_id] = (assignmentCounts[a.member_id] || 0) + 1;
-            lastAssignmentDate[a.member_id] = sunday;
-            roleHistory[a.member_id].Kolektan++;
-        });
+        const litGender = sDate.liturgosGender;
+        const litEligible = liturgosCandidates
+            .filter(m => m.gender === litGender && !dateAssignments[dateStr].has(m.id))
+            .map(m => ({
+                ...m,
+                score: scoreCandidate(m, 'Liturgos', assignmentCounts, lastAssignmentDate, sDate.date, members.length, totalAssignments, dateAssignments, dateStr, previousDateRoles)
+            }))
+            .sort((a, b) => b.score - a.score);
 
-        const singerResult = assignSinger(
-            singerCandidates, members, sunday, dateStr,
-            dateAssignments, assignmentCounts, lastAssignmentDate, roleHistory, warnings
-        );
-        singerResult.forEach(a => {
-            assignments.push(a);
-            dateAssignments[dateStr].add(a.member_id);
-            assignmentCounts[a.member_id] = (assignmentCounts[a.member_id] || 0) + 1;
-            lastAssignmentDate[a.member_id] = sunday;
-            roleHistory[a.member_id].Singer++;
-        });
+        if (litEligible.length > 0) {
+            const picked = litEligible[0];
+            assignments.push({
+                service_date: sDate.date,
+                service_date_str: dateStr,
+                member_id: picked.id,
+                member_name: picked.name,
+                gender: picked.gender,
+                role: 'Liturgos'
+            });
+            dateAssignments[dateStr].add(picked.id);
+            assignmentCounts[picked.id] = (assignmentCounts[picked.id] || 0) + 1;
+            lastAssignmentDate[picked.id] = sDate.date;
+            currentDateRoles.Liturgos.add(picked.id);
+        } else {
+            warnings.push({
+                type: 'error',
+                date: dateStr,
+                role: 'Liturgos',
+                message: 'Jadwal tanggal ' + dateStr + ' belum dapat dibuat karena tidak tersedia anggota ' + (litGender === 'L' ? 'laki-laki' : 'perempuan') + ' yang memenuhi syarat sebagai Liturgos.'
+            });
+        }
+
+        const kolEligibleM = kolektanCandidates
+            .filter(m => m.gender === 'L' && !dateAssignments[dateStr].has(m.id))
+            .map(m => ({
+                ...m,
+                score: scoreCandidate(m, 'Kolektan', assignmentCounts, lastAssignmentDate, sDate.date, members.length, totalAssignments, dateAssignments, dateStr, previousDateRoles)
+            }))
+            .sort((a, b) => b.score - a.score);
+
+        const kolEligibleF = kolektanCandidates
+            .filter(m => m.gender === 'P' && !dateAssignments[dateStr].has(m.id))
+            .map(m => ({
+                ...m,
+                score: scoreCandidate(m, 'Kolektan', assignmentCounts, lastAssignmentDate, sDate.date, members.length, totalAssignments, dateAssignments, dateStr, previousDateRoles)
+            }))
+            .sort((a, b) => b.score - a.score);
+
+        if (kolEligibleM.length > 0) {
+            const pickedM = kolEligibleM[0];
+            assignments.push({
+                service_date: sDate.date,
+                service_date_str: dateStr,
+                member_id: pickedM.id,
+                member_name: pickedM.name,
+                gender: pickedM.gender,
+                role: 'Kolektan'
+            });
+            dateAssignments[dateStr].add(pickedM.id);
+            assignmentCounts[pickedM.id] = (assignmentCounts[pickedM.id] || 0) + 1;
+            lastAssignmentDate[pickedM.id] = sDate.date;
+            currentDateRoles.Kolektan.add(pickedM.id);
+        } else {
+            warnings.push({
+                type: 'error',
+                date: dateStr,
+                role: 'Kolektan',
+                message: 'Jadwal tanggal ' + dateStr + ' belum dapat dibuat karena tidak tersedia anggota laki-laki yang memenuhi syarat sebagai Kolektan.'
+            });
+        }
+
+        if (kolEligibleF.length > 0) {
+            const pickedF = kolEligibleF[0];
+            assignments.push({
+                service_date: sDate.date,
+                service_date_str: dateStr,
+                member_id: pickedF.id,
+                member_name: pickedF.name,
+                gender: pickedF.gender,
+                role: 'Kolektan'
+            });
+            dateAssignments[dateStr].add(pickedF.id);
+            assignmentCounts[pickedF.id] = (assignmentCounts[pickedF.id] || 0) + 1;
+            lastAssignmentDate[pickedF.id] = sDate.date;
+            currentDateRoles.Kolektan.add(pickedF.id);
+        } else {
+            warnings.push({
+                type: 'error',
+                date: dateStr,
+                role: 'Kolektan',
+                message: 'Jadwal tanggal ' + dateStr + ' belum dapat dibuat karena tidak tersedia anggota perempuan yang memenuhi syarat sebagai Kolektan.'
+            });
+        }
+
+        const singEligibleM = singerCandidates
+            .filter(m => m.gender === 'L' && !dateAssignments[dateStr].has(m.id))
+            .map(m => ({
+                ...m,
+                score: scoreCandidate(m, 'Singer', assignmentCounts, lastAssignmentDate, sDate.date, members.length, totalAssignments, dateAssignments, dateStr, previousDateRoles)
+            }))
+            .sort((a, b) => b.score - a.score);
+
+        const singEligibleF = singerCandidates
+            .filter(m => m.gender === 'P' && !dateAssignments[dateStr].has(m.id))
+            .map(m => ({
+                ...m,
+                score: scoreCandidate(m, 'Singer', assignmentCounts, lastAssignmentDate, sDate.date, members.length, totalAssignments, dateAssignments, dateStr, previousDateRoles)
+            }))
+            .sort((a, b) => b.score - a.score);
+
+        if (singEligibleM.length > 0) {
+            const pickedM = singEligibleM[0];
+            assignments.push({
+                service_date: sDate.date,
+                service_date_str: dateStr,
+                member_id: pickedM.id,
+                member_name: pickedM.name,
+                gender: pickedM.gender,
+                role: 'Singer'
+            });
+            dateAssignments[dateStr].add(pickedM.id);
+            assignmentCounts[pickedM.id] = (assignmentCounts[pickedM.id] || 0) + 1;
+            lastAssignmentDate[pickedM.id] = sDate.date;
+            currentDateRoles.Singer.add(pickedM.id);
+        } else {
+            warnings.push({
+                type: 'error',
+                date: dateStr,
+                role: 'Singer',
+                message: 'Jadwal tanggal ' + dateStr + ' belum dapat dibuat karena tidak tersedia anggota laki-laki yang memenuhi syarat sebagai Singer.'
+            });
+        }
+
+        if (singEligibleF.length >= 2) {
+            for (let f = 0; f < 2; f++) {
+                const pickedF = singEligibleF[f];
+                assignments.push({
+                    service_date: sDate.date,
+                    service_date_str: dateStr,
+                    member_id: pickedF.id,
+                    member_name: pickedF.name,
+                    gender: pickedF.gender,
+                    role: 'Singer'
+                });
+                dateAssignments[dateStr].add(pickedF.id);
+                assignmentCounts[pickedF.id] = (assignmentCounts[pickedF.id] || 0) + 1;
+                lastAssignmentDate[pickedF.id] = sDate.date;
+                currentDateRoles.Singer.add(pickedF.id);
+            }
+        } else if (singEligibleF.length === 1) {
+            const pickedF = singEligibleF[0];
+            assignments.push({
+                service_date: sDate.date,
+                service_date_str: dateStr,
+                member_id: pickedF.id,
+                member_name: pickedF.name,
+                gender: pickedF.gender,
+                role: 'Singer'
+            });
+            dateAssignments[dateStr].add(pickedF.id);
+            assignmentCounts[pickedF.id] = (assignmentCounts[pickedF.id] || 0) + 1;
+            lastAssignmentDate[pickedF.id] = sDate.date;
+            currentDateRoles.Singer.add(pickedF.id);
+            warnings.push({
+                type: 'error',
+                date: dateStr,
+                role: 'Singer',
+                message: 'Hanya 1 dari 2 Singer perempuan yang dapat diisi pada tanggal ' + dateStr + '.'
+            });
+        } else {
+            warnings.push({
+                type: 'error',
+                date: dateStr,
+                role: 'Singer',
+                message: 'Jadwal tanggal ' + dateStr + ' belum dapat dibuat karena tidak tersedia anggota perempuan yang memenuhi syarat sebagai Singer.'
+            });
+        }
+
+        const currentAssignedList = Array.from(dateAssignments[dateStr]);
+        for (const mid of currentAssignedList) {
+            const mem = members.find(x => x.id === mid);
+            if (mem && mem.partner_id && dateAssignments[dateStr].has(mem.partner_id)) {
+                const partnerMem = members.find(x => x.id === mem.partner_id);
+                warnings.push({
+                    type: 'info',
+                    date: dateStr,
+                    role: 'Pasangan',
+                    message: 'Pasangan (' + mem.name + ' & ' + (partnerMem ? partnerMem.name : 'Pasangan') + ') dijadwalkan bersama pada tanggal ini karena tidak ada kombinasi lain yang lebih optimal.'
+                });
+            }
+        }
+
+        previousDateRoles = currentDateRoles;
     }
 
     progress(95, 'Memverifikasi jadwal...', '');
-    const stats = computeStats(assignments, members, sundays);
+    const stats = computeStats(assignments, members, serviceDates);
     progress(100, 'Selesai!', assignments.length + ' penugasan dibuat');
 
     return { assignments, warnings, stats };
 }
 
-function assignRole(role, count, genderConstraint, candidates, allMembers, sunday, dateStr,
-                    dateAssignments, assignmentCounts, lastAssignmentDate, roleHistory, warnings) {
-    const result = [];
-    const totalAssignments = Object.values(assignmentCounts).reduce((a, b) => a + b, 0);
-
-    let eligible = candidates.filter(m =>
-        !dateAssignments[dateStr].has(m.id)
-    );
-
-    let pool = eligible.map(m => ({
-        ...m,
-        score: scoreRoleCandidate(m, role, assignmentCounts, lastAssignmentDate, sunday, allMembers.length, totalAssignments, roleHistory)
-    })).sort((a, b) => b.score - a.score);
-
-    for (let i = 0; i < count && i < pool.length; i++) {
-        const member = pool[i];
-        if ((roleHistory[member.id]?.[role] || 0) > 0) {
-            warnings.push({
-                type: 'warning', date: dateStr, role,
-                message: 'Anggota ' + member.name + ' mengulang peran ' + role + ' karena keterbatasan kandidat.'
-            });
-        }
-        result.push({
-            service_date: sunday,
-            service_date_str: dateStr,
-            member_id: member.id,
-            member_name: member.name,
-            gender: member.gender,
-            role: role
-        });
-    }
-
-    if (result.length < count) {
-        warnings.push({
-            type: 'error', date: dateStr, role,
-            message: 'Hanya ' + result.length + ' dari ' + count + ' ' + role + ' yang bisa diisi pada tanggal ini.'
-        });
-    }
-
-    return result;
-}
-
-function assignKolektan(candidates, allMembers, sunday, dateStr,
-                        dateAssignments, assignmentCounts, lastAssignmentDate, roleHistory, warnings) {
-    const result = [];
-    const totalAssignments = Object.values(assignmentCounts).reduce((a, b) => a + b, 0);
-    const role = 'Kolektan';
-
-    const eligible = candidates.filter(m => !dateAssignments[dateStr].has(m.id));
-    const males = eligible.filter(m => m.gender === 'L');
-    const females = eligible.filter(m => m.gender === 'P');
-
-    let pickedMale = null;
-    let pickedFemale = null;
-
-    const scoredMales = males.map(m => ({
-        ...m,
-        score: scoreRoleCandidate(m, role, assignmentCounts, lastAssignmentDate, sunday, allMembers.length, totalAssignments, roleHistory)
-    })).sort((a, b) => b.score - a.score);
-
-    const scoredFemales = females.map(m => ({
-        ...m,
-        score: scoreRoleCandidate(m, role, assignmentCounts, lastAssignmentDate, sunday, allMembers.length, totalAssignments, roleHistory)
-    })).sort((a, b) => b.score - a.score);
-
-    if (scoredMales.length > 0) pickedMale = scoredMales[0];
-    if (scoredFemales.length > 0) pickedFemale = scoredFemales[0];
-
-    if (pickedMale) {
-        if ((roleHistory[pickedMale.id]?.Kolektan || 0) > 0) {
-            warnings.push({
-                type: 'warning', date: dateStr, role,
-                message: 'Anggota ' + pickedMale.name + ' mengulang peran Kolektan karena keterbatasan kandidat pria.'
-            });
-        }
-        result.push({
-            service_date: sunday, service_date_str: dateStr,
-            member_id: pickedMale.id, member_name: pickedMale.name,
-            gender: pickedMale.gender, role
-        });
-    }
-    if (pickedFemale) {
-        if ((roleHistory[pickedFemale.id]?.Kolektan || 0) > 0) {
-            warnings.push({
-                type: 'warning', date: dateStr, role,
-                message: 'Anggota ' + pickedFemale.name + ' mengulang peran Kolektan karena keterbatasan kandidat wanita.'
-            });
-        }
-        result.push({
-            service_date: sunday, service_date_str: dateStr,
-            member_id: pickedFemale.id, member_name: pickedFemale.name,
-            gender: pickedFemale.gender, role
-        });
-    }
-
-    if (result.length < 2) {
-        const picked = new Set(result.map(r => r.member_id));
-        const remaining = eligible
-            .filter(m => !picked.has(m.id))
-            .map(m => ({
-                ...m,
-                score: scoreRoleCandidate(m, role, assignmentCounts, lastAssignmentDate, sunday, allMembers.length, totalAssignments, roleHistory)
-            }))
-            .sort((a, b) => b.score - a.score);
-
-        const needed = 2 - result.length;
-        for (let i = 0; i < needed && i < remaining.length; i++) {
-            result.push({
-                service_date: sunday, service_date_str: dateStr,
-                member_id: remaining[i].id, member_name: remaining[i].name,
-                gender: remaining[i].gender, role
-            });
-        }
-
-        if (!pickedMale || !pickedFemale) {
-            warnings.push({
-                type: 'warning', date: dateStr, role,
-                message: 'Aturan gender Kolektan (1L + 1P) tidak terpenuhi pada tanggal ini.'
-            });
-        }
-    }
-
-    if (result.length < 2) {
-        warnings.push({
-            type: 'error', date: dateStr, role,
-            message: 'Hanya ' + result.length + ' Kolektan yang bisa diisi pada tanggal ini.'
-        });
-    }
-
-    return result;
-}
-
-function assignSinger(candidates, allMembers, sunday, dateStr,
-                      dateAssignments, assignmentCounts, lastAssignmentDate, roleHistory, warnings) {
-    const result = [];
-    const totalAssignments = Object.values(assignmentCounts).reduce((a, b) => a + b, 0);
-    const role = 'Singer';
-
-    const eligible = candidates.filter(m => !dateAssignments[dateStr].has(m.id));
-    const males = eligible.filter(m => m.gender === 'L');
-    const females = eligible.filter(m => m.gender === 'P');
-
-    const scoredMales = males.map(m => ({
-        ...m,
-        score: scoreRoleCandidate(m, role, assignmentCounts, lastAssignmentDate, sunday, allMembers.length, totalAssignments, roleHistory)
-    })).sort((a, b) => b.score - a.score);
-
-    const scoredFemales = females.map(m => ({
-        ...m,
-        score: scoreRoleCandidate(m, role, assignmentCounts, lastAssignmentDate, sunday, allMembers.length, totalAssignments, roleHistory)
-    })).sort((a, b) => b.score - a.score);
-
-    const optionA = tryGenderCombo(scoredMales, 1, scoredFemales, 2);
-    const optionB = tryGenderCombo(scoredMales, 2, scoredFemales, 1);
-
-    let bestOption = null;
-    let genderMet = true;
-
-    if (optionA && optionB) {
-        const scoreA = optionA.reduce((s, m) => s + m.score, 0);
-        const scoreB = optionB.reduce((s, m) => s + m.score, 0);
-        bestOption = scoreA >= scoreB ? optionA : optionB;
-    } else if (optionA) {
-        bestOption = optionA;
-    } else if (optionB) {
-        bestOption = optionB;
-    } else {
-        genderMet = false;
-        const allScored = eligible
-            .map(m => ({
-                ...m,
-                score: scoreRoleCandidate(m, role, assignmentCounts, lastAssignmentDate, sunday, allMembers.length, totalAssignments, roleHistory)
-            }))
-            .sort((a, b) => b.score - a.score);
-        bestOption = allScored.slice(0, 3);
-    }
-
-    if (!genderMet) {
-        warnings.push({
-            type: 'warning', date: dateStr, role,
-            message: 'Aturan gender Singer (campuran L & P) tidak terpenuhi pada tanggal ini.'
-        });
-    }
-
-    bestOption.forEach(m => {
-        if ((roleHistory[m.id]?.Singer || 0) > 0) {
-            warnings.push({
-                type: 'warning', date: dateStr, role,
-                message: 'Anggota ' + m.name + ' mengulang peran Singer karena keterbatasan kandidat.'
-            });
-        }
-        result.push({
-            service_date: sunday, service_date_str: dateStr,
-            member_id: m.id, member_name: m.name,
-            gender: m.gender, role
-        });
-    });
-
-    if (result.length < 3) {
-        warnings.push({
-            type: 'error', date: dateStr, role,
-            message: 'Hanya ' + result.length + ' Singer yang bisa diisi pada tanggal ini.'
-        });
-    }
-
-    return result;
-}
-
-function tryGenderCombo(scoredMales, maleCount, scoredFemales, femaleCount) {
-    if (scoredMales.length < maleCount || scoredFemales.length < femaleCount) return null;
-    return [...scoredMales.slice(0, maleCount), ...scoredFemales.slice(0, femaleCount)];
-}
-
-function computeStats(assignments, members, sundays) {
+function computeStats(assignments, members, serviceDates) {
     const memberStats = {};
     members.forEach(m => {
         memberStats[m.id] = { name: m.name, count: 0, roles: { Liturgos: 0, Kolektan: 0, Singer: 0 } };
@@ -390,11 +428,11 @@ function computeStats(assignments, members, sundays) {
     const assignedMembers = counts.length;
     const unassignedMembers = members.length - assignedMembers;
 
-    const expectedTotal = sundays.length * 6;
+    const expectedTotal = serviceDates.length * 6;
     const unfilledSlots = expectedTotal - assignments.length;
 
     return {
-        totalSundays: sundays.length,
+        totalDates: serviceDates.length,
         totalAssignments: assignments.length,
         expectedTotal,
         unfilledSlots,
@@ -405,70 +443,6 @@ function computeStats(assignments, members, sundays) {
         avgAssignments: avgCount,
         memberStats
     };
-}
-
-function validateSchedule(assignments, members) {
-    const results = [];
-
-    const byDate = {};
-    assignments.forEach(a => {
-        const d = a.service_date_str || toDateString(a.service_date);
-        if (!byDate[d]) byDate[d] = [];
-        byDate[d].push(a);
-    });
-
-    const dates = Object.keys(byDate).sort();
-
-    let allFilled = true;
-    dates.forEach(d => {
-        const liturgos = byDate[d].filter(a => a.role === 'Liturgos');
-        const kolektan = byDate[d].filter(a => a.role === 'Kolektan');
-        const singer = byDate[d].filter(a => a.role === 'Singer');
-        if (liturgos.length < 1 || kolektan.length < 2 || singer.length < 3) allFilled = false;
-    });
-    results.push({ status: allFilled ? 'pass' : 'fail', message: allFilled ? 'Semua posisi terisi' : 'Ada posisi yang belum terisi' });
-
-    let noDup = true;
-    dates.forEach(d => {
-        const ids = byDate[d].map(a => a.member_id);
-        if (new Set(ids).size !== ids.length) noDup = false;
-    });
-    results.push({ status: noDup ? 'pass' : 'fail', message: noDup ? 'Tidak ada penugasan ganda per minggu' : 'Ada penugasan ganda' });
-
-    let capOk = true;
-    const memberMap = {};
-    members.forEach(m => { memberMap[m.id] = m; });
-    assignments.forEach(a => {
-        const m = memberMap[a.member_id];
-        if (m) {
-            if (a.role === 'Liturgos' && !m.can_liturgos) capOk = false;
-            if (a.role === 'Kolektan' && !m.can_kolektan) capOk = false;
-            if (a.role === 'Singer' && !m.can_singer) capOk = false;
-        }
-    });
-    results.push({ status: capOk ? 'pass' : 'fail', message: capOk ? 'Semua penugasan sesuai kemampuan' : 'Ada penugasan yang tidak sesuai kemampuan' });
-
-    let kolGenderOk = true;
-    dates.forEach(d => {
-        const kol = byDate[d].filter(a => a.role === 'Kolektan');
-        if (kol.length === 2) {
-            const genders = kol.map(a => a.gender || memberMap[a.member_id]?.gender);
-            if (!genders.includes('L') || !genders.includes('P')) kolGenderOk = false;
-        }
-    });
-    results.push({ status: kolGenderOk ? 'pass' : 'warn', message: kolGenderOk ? 'Gender Kolektan sesuai (1L + 1P)' : 'Ada Kolektan yang tidak sesuai aturan gender' });
-
-    let singGenderOk = true;
-    dates.forEach(d => {
-        const sing = byDate[d].filter(a => a.role === 'Singer');
-        if (sing.length === 3) {
-            const maleCount = sing.filter(a => (a.gender || memberMap[a.member_id]?.gender) === 'L').length;
-            if (maleCount !== 1 && maleCount !== 2) singGenderOk = false;
-        }
-    });
-    results.push({ status: singGenderOk ? 'pass' : 'warn', message: singGenderOk ? 'Gender Singer sesuai (campuran L & P)' : 'Ada Singer yang tidak sesuai aturan gender' });
-
-    return results;
 }
 
 function initSchedulePage() {
@@ -494,9 +468,14 @@ function populateScheduleFilters() {
     const updateCount = () => {
         const year = parseInt(yearSelect.value);
         const semester = parseInt(semSelect.value);
-        const sundays = getSundaysInPeriod(year, semester);
+        const dates = getServiceDatesInPeriod(year, semester);
+        const sundays = dates.filter(d => d.date.getDay() === 0);
+        const special = dates.length - sundays.length;
         const countEl = document.getElementById('sundayCount');
-        if (countEl) countEl.textContent = sundays.length + ' hari Minggu dalam periode ini';
+        if (countEl) {
+            countEl.textContent = dates.length + ' tanggal pelayanan dalam periode ini (' +
+                sundays.length + ' Minggu' + (special > 0 ? ' + ' + special + ' Ibadah Khusus' : '') + ')';
+        }
         checkExistingSchedule(year, semester);
     };
 
@@ -641,14 +620,14 @@ function showGenerateResults(result, year, semester) {
     }
 
     html += '<div class="stats-grid" style="margin-bottom:20px;">';
-    html += '<div class="stat-card"><div class="stat-icon blue"><span class="material-icons-outlined">calendar_today</span></div><div class="stat-info"><div class="stat-value">' + stats.totalSundays + '</div><div class="stat-label">Hari Minggu</div></div></div>';
+    html += '<div class="stat-card"><div class="stat-icon blue"><span class="material-icons-outlined">calendar_today</span></div><div class="stat-info"><div class="stat-value">' + stats.totalDates + '</div><div class="stat-label">Tanggal Pelayanan</div></div></div>';
     html += '<div class="stat-card"><div class="stat-icon green"><span class="material-icons-outlined">assignment_turned_in</span></div><div class="stat-info"><div class="stat-value">' + stats.totalAssignments + '</div><div class="stat-label">Total Penugasan</div></div></div>';
     html += '<div class="stat-card"><div class="stat-icon gold"><span class="material-icons-outlined">group</span></div><div class="stat-info"><div class="stat-value">' + stats.assignedMembers + '</div><div class="stat-label">Anggota Terjadwal</div></div></div>';
     html += '<div class="stat-card"><div class="stat-icon purple"><span class="material-icons-outlined">balance</span></div><div class="stat-info"><div class="stat-value">' + stats.minAssignments + '-' + stats.maxAssignments + '</div><div class="stat-label">Min-Max Tugas (rata-rata: ' + stats.avgAssignments + ')</div></div></div>';
     html += '</div>';
 
     if (warnings.length > 0) {
-        html += '<div class="card"><div class="card-header"><h3 class="card-title">⚠️ Peringatan (' + warnings.length + ')</h3></div>';
+        html += '<div class="card"><div class="card-header"><h3 class="card-title">⚠️ Laporan Pemeriksaan (' + warnings.length + ')</h3></div>';
         html += '<ul id="warningsList" style="list-style:none;padding:0;">';
         warnings.forEach(w => {
             const cls = w.type === 'error' ? 'alert-danger' : (w.type === 'warning' ? 'alert-warning' : 'alert-info');

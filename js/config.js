@@ -20,8 +20,8 @@ const APP_CONFIG = {
     churchName: 'BKPN Botohilitano',
     rolesPerSunday: {
         Liturgos: 1,
-        Kolektan: 2,
-        Singer: 3
+        Singer: 3,
+        Kolektan: 2
     },
     totalPerSunday: 6
 };

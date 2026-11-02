@@ -87,6 +87,7 @@
                                     <th>Liturgos</th>
                                     <th>Kolektan</th>
                                     <th>Singer</th>
+                                    <th>Pasangan</th>
                                     <th>Aksi</th>
                                 </tr>
                             </thead>
@@ -142,6 +143,13 @@
                             </label>
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label class="form-label" for="memberPartner">Pasangan (Opsional)</label>
+                        <select id="memberPartner" class="form-select">
+                            <option value="">— Tidak ada / Belum dipilih —</option>
+                        </select>
+                        <div class="text-xs text-muted" style="margin-top:4px;">Sistem akan mengusahakan pasangan tidak bertugas pada tanggal yang sama.</div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary btn-cancel-member">Batal</button>
@@ -167,7 +175,7 @@
                     <span class="material-icons-outlined">info</span>
                     <div>
                         <strong>Format kolom Excel yang diharapkan:</strong><br>
-                        Nama, Gender (L/P), Liturgos (1/0), Kolektan (1/0), Singer (1/0)
+                        Nama, Gender (L/P), Liturgos (1/0), Kolektan (1/0), Singer (1/0), Pasangan (Nama Pasangan, opsional)
                     </div>
                 </div>
                 <div class="form-group">

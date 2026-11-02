@@ -187,15 +187,15 @@ function renderScheduleTable(grouped) {
 
     tbody.innerHTML = grouped.map((row, i) => {
         const liturgosHtml = renderRoleCell(row.Liturgos, row.service_date, 'Liturgos');
-        const kolektanHtml = renderRoleCell(row.Kolektan, row.service_date, 'Kolektan');
         const singerHtml = renderRoleCell(row.Singer, row.service_date, 'Singer');
+        const kolektanHtml = renderRoleCell(row.Kolektan, row.service_date, 'Kolektan');
 
         return '<tr>' +
             '<td class="text-center">' + (i + 1) + '</td>' +
             '<td style="white-space:nowrap;">' + formatDateIndonesian(row.service_date) + '</td>' +
             '<td class="schedule-cell">' + liturgosHtml + '</td>' +
-            '<td class="schedule-cell">' + kolektanHtml + '</td>' +
             '<td class="schedule-cell">' + singerHtml + '</td>' +
+            '<td class="schedule-cell">' + kolektanHtml + '</td>' +
             '</tr>';
     }).join('');
 }
@@ -394,7 +394,7 @@ function runValidation(grouped) {
     });
     checks.push({
         status: allFilled ? 'pass' : 'fail',
-        text: allFilled ? 'Semua posisi terisi' : emptySlots + ' slot kosong ditemukan'
+        text: allFilled ? 'Semua posisi terisi (tepat 6 petugas per tanggal)' : emptySlots + ' slot kosong ditemukan'
     });
 
     let noDuplicates = true;
@@ -405,7 +405,28 @@ function runValidation(grouped) {
     });
     checks.push({
         status: noDuplicates ? 'pass' : 'fail',
-        text: noDuplicates ? 'Tidak ada penugasan ganda per minggu' : 'Ditemukan anggota dengan tugas ganda pada hari yang sama'
+        text: noDuplicates ? 'Tidak ada penugasan ganda pada tanggal yang sama' : 'Ditemukan anggota dengan tugas ganda pada hari yang sama'
+    });
+
+    let liturgosPatternOk = true;
+    if (currentSchedule && typeof getAllAnnualServiceDates === 'function') {
+        const allYear = getAllAnnualServiceDates(currentSchedule.year);
+        const dateIdxMap = {};
+        allYear.forEach((d, idx) => { dateIdxMap[d.dateStr] = idx; });
+
+        grouped.forEach(row => {
+            if (row.Liturgos.length === 1) {
+                const idx = dateIdxMap[row.service_date];
+                if (idx !== undefined) {
+                    const expected = (idx % 3 === 0) ? 'L' : 'P';
+                    if (row.Liturgos[0].gender !== expected) liturgosPatternOk = false;
+                }
+            }
+        });
+    }
+    checks.push({
+        status: liturgosPatternOk ? 'pass' : 'warn',
+        text: liturgosPatternOk ? 'Pola gender Liturgos sesuai (L–P–P)' : 'Ada Liturgos yang tidak sesuai urutan pola gender L–P–P'
     });
 
     let kolektanGenderOk = true;
@@ -425,34 +446,30 @@ function runValidation(grouped) {
         if (row.Singer.length === 3) {
             const males = row.Singer.filter(m => m.gender === 'L').length;
             const females = row.Singer.filter(m => m.gender === 'P').length;
-            if (!((males === 1 && females === 2) || (males === 2 && females === 1))) {
+            if (males !== 1 || females !== 2) {
                 singerGenderOk = false;
             }
         }
     });
     checks.push({
         status: singerGenderOk ? 'pass' : 'warn',
-        text: singerGenderOk ? 'Gender Singer sesuai (campuran L & P)' : 'Ada Singer yang tidak memenuhi aturan gender'
+        text: singerGenderOk ? 'Gender Singer sesuai (2P + 1L)' : 'Ada Singer yang tidak memenuhi aturan gender (harus 2 Perempuan + 1 Laki-laki)'
     });
 
-    const roleCounts = {};
-    grouped.forEach(row => {
+    let consecutiveRepeats = 0;
+    for (let i = 1; i < grouped.length; i++) {
+        const prev = grouped[i - 1];
+        const curr = grouped[i];
         ['Liturgos', 'Kolektan', 'Singer'].forEach(role => {
-            row[role].forEach(m => {
-                if (!roleCounts[m.memberId]) roleCounts[m.memberId] = { Liturgos: 0, Kolektan: 0, Singer: 0 };
-                roleCounts[m.memberId][role]++;
+            const prevIds = new Set(prev[role].map(m => m.memberId));
+            curr[role].forEach(m => {
+                if (prevIds.has(m.memberId)) consecutiveRepeats++;
             });
         });
-    });
-    let repeats = 0;
-    Object.values(roleCounts).forEach(rc => {
-        ['Liturgos', 'Kolektan', 'Singer'].forEach(role => {
-            if (rc[role] > 1) repeats += (rc[role] - 1);
-        });
-    });
+    }
     checks.push({
-        status: repeats === 0 ? 'pass' : 'warn',
-        text: repeats === 0 ? 'Tidak ada pengulangan posisi dalam periode' : repeats + ' pengulangan posisi ditemukan'
+        status: consecutiveRepeats === 0 ? 'pass' : 'warn',
+        text: consecutiveRepeats === 0 ? 'Tidak ada penugasan posisi sama berturut-turut' : consecutiveRepeats + ' pengulangan posisi berturut-turut ditemukan'
     });
 
     const iconMap = { pass: 'check_circle', fail: 'cancel', warn: 'warning' };
@@ -485,7 +502,9 @@ function formatDateIndonesian(dateStr) {
         'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
         'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
-    return 'Minggu, ' + day + ' ' + months[month] + ' ' + year;
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const dayName = days[new Date(year, month, day).getDay()];
+    return dayName + ', ' + day + ' ' + months[month] + ' ' + year;
 }
 
 function escapeHtml(str) {

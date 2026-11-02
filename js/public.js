@@ -173,8 +173,8 @@ function renderPublicTable(grouped) {
             '<td class="text-center">' + (i + 1) + '</td>' +
             '<td>' + formatPublicDate(row.service_date) + '</td>' +
             '<td>' + (row.Liturgos.map(escapePublicHtml).join(', ') || '-') + '</td>' +
-            '<td>' + (row.Kolektan.map(escapePublicHtml).join(', ') || '-') + '</td>' +
             '<td>' + (row.Singer.map(escapePublicHtml).join(', ') || '-') + '</td>' +
+            '<td>' + (row.Kolektan.map(escapePublicHtml).join(', ') || '-') + '</td>' +
             '</tr>';
     }).join('');
 }
@@ -209,7 +209,9 @@ function formatPublicDate(dateStr) {
         'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
         'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
-    return 'Minggu, ' + day + ' ' + months[month] + ' ' + year;
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const dayName = days[new Date(year, month, day).getDay()];
+    return dayName + ', ' + day + ' ' + months[month] + ' ' + year;
 }
 
 function escapePublicHtml(str) {

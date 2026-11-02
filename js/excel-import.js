@@ -62,8 +62,22 @@ function initImportModal() {
                     can_singer: m.can_singer
                 }));
 
-                const { error } = await supabaseClient.from('members').insert(insertData);
+                const { data: insertedMembers, error } = await supabaseClient.from('members').insert(insertData).select();
                 if (error) throw error;
+
+                const nameToMember = {};
+                (insertedMembers || []).forEach(m => {
+                    nameToMember[m.name.toLowerCase().trim()] = m;
+                });
+                for (const vm of validMembers) {
+                    if (vm.partnerName && nameToMember[vm.partnerName.toLowerCase().trim()]) {
+                        const m1 = nameToMember[vm.name.toLowerCase().trim()];
+                        const m2 = nameToMember[vm.partnerName.toLowerCase().trim()];
+                        if (m1 && m2 && m1.id !== m2.id) {
+                            await supabaseClient.from('members').update({ partner_id: m2.id }).eq('id', m1.id);
+                        }
+                    }
+                }
 
                 const skipped = parsedImportData.length - validMembers.length;
                 showToast(validMembers.length + ' anggota berhasil diimpor' + (skipped > 0 ? ', ' + skipped + ' dilewati' : ''), 'success');
@@ -105,6 +119,7 @@ async function parseExcelFile(file) {
                     const can_liturgos = toBool(findValue(row, ['Liturgos', 'liturgos', 'LITURGOS', 'Can_Liturgos']));
                     const can_kolektan = toBool(findValue(row, ['Kolektan', 'kolektan', 'KOLEKTAN', 'Can_Kolektan']));
                     const can_singer = toBool(findValue(row, ['Singer', 'singer', 'SINGER', 'Can_Singer', 'Penyanyi']));
+                    const partnerName = (findValue(row, ['Pasangan', 'pasangan', 'PASANGAN', 'Partner', 'partner']) || '').toString().trim();
 
                     const hasCapability = can_liturgos || can_kolektan || can_singer;
                     const validGender = ['L', 'P'].includes(gender);
@@ -117,6 +132,7 @@ async function parseExcelFile(file) {
                         can_liturgos,
                         can_kolektan,
                         can_singer,
+                        partnerName,
                         isValid: validName && validGender && hasCapability,
                         errors: [
                             ...(!validName ? ['Nama kosong'] : []),
@@ -178,7 +194,7 @@ function showImportPreview(members) {
     html += '</div>';
 
     html += '<div class="table-container"><table class="data-table"><thead><tr>';
-    html += '<th>Baris</th><th>Nama</th><th>Gender</th><th>L</th><th>K</th><th>S</th><th>Status</th>';
+    html += '<th>Baris</th><th>Nama</th><th>Gender</th><th>L</th><th>K</th><th>S</th><th>Pasangan</th><th>Status</th>';
     html += '</tr></thead><tbody>';
 
     members.forEach(m => {
@@ -190,6 +206,7 @@ function showImportPreview(members) {
         html += '<td>' + (m.can_liturgos ? '✓' : '-') + '</td>';
         html += '<td>' + (m.can_kolektan ? '✓' : '-') + '</td>';
         html += '<td>' + (m.can_singer ? '✓' : '-') + '</td>';
+        html += '<td>' + escapeHtml(m.partnerName || '-') + '</td>';
         html += '<td>' + (m.isValid
             ? '<span class="text-success">✓</span>'
             : '<span class="text-danger">' + m.errors.join(', ') + '</span>') + '</td>';
