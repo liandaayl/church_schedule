@@ -218,7 +218,12 @@ async function confirmDeleteMember() {
 
     try {
         const { error } = await supabaseClient.from('members').delete().eq('id', currentDeleteId);
-        if (error) throw error;
+        if (error) {
+            if (error.code === '23503' || error.message?.includes('violates foreign key constraint')) {
+                throw new Error('Anggota ini tidak dapat dihapus karena sudah memiliki riwayat tugas dalam jadwal ibadah. Hapus atau sesuaikan penugasan terkait terlebih dahulu.');
+            }
+            throw error;
+        }
 
         showToast('Anggota berhasil dihapus', 'success');
         document.getElementById('deleteModal')?.classList.remove('active');

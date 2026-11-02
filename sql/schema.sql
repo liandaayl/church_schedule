@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS public.schedule_assignments (
     id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     schedule_id   UUID NOT NULL REFERENCES public.schedules(id) ON DELETE CASCADE,
     service_date  DATE NOT NULL,
-    member_id     UUID NOT NULL REFERENCES public.members(id) ON DELETE CASCADE,
+    member_id     UUID NOT NULL REFERENCES public.members(id) ON DELETE RESTRICT,
     role          TEXT NOT NULL CHECK (role IN ('Liturgos', 'Kolektan', 'Singer')),
     UNIQUE(schedule_id, service_date, member_id)
 );
@@ -34,6 +34,20 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     role        TEXT NOT NULL DEFAULT 'viewer' CHECK (role IN ('admin', 'viewer')),
     created_at  TIMESTAMPTZ DEFAULT now()
 );
+
+-- Foreign Key migration for existing table (ON DELETE CASCADE -> ON DELETE RESTRICT)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE constraint_name = 'schedule_assignments_member_id_fkey' 
+        AND table_name = 'schedule_assignments'
+    ) THEN
+        ALTER TABLE public.schedule_assignments DROP CONSTRAINT schedule_assignments_member_id_fkey;
+        ALTER TABLE public.schedule_assignments ADD CONSTRAINT schedule_assignments_member_id_fkey 
+            FOREIGN KEY (member_id) REFERENCES public.members(id) ON DELETE RESTRICT;
+    END IF;
+END $$;
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_schedule_assignments_schedule_id ON public.schedule_assignments(schedule_id);
@@ -48,16 +62,27 @@ ALTER TABLE public.schedule_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
 BEGIN
     RETURN EXISTS (
         SELECT 1 FROM public.profiles
         WHERE id = auth.uid() AND role = 'admin'
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+$$;
 
 -- Policies: members
+DROP POLICY IF EXISTS "members_select_authenticated" ON public.members;
+DROP POLICY IF EXISTS "members_select_anon" ON public.members;
+DROP POLICY IF EXISTS "members_insert_admin" ON public.members;
+DROP POLICY IF EXISTS "members_update_admin" ON public.members;
+DROP POLICY IF EXISTS "members_delete_admin" ON public.members;
+
 CREATE POLICY "members_select_authenticated" ON public.members FOR SELECT TO authenticated USING (true);
 CREATE POLICY "members_select_anon" ON public.members FOR SELECT TO anon USING (
     EXISTS (
@@ -71,6 +96,12 @@ CREATE POLICY "members_update_admin" ON public.members FOR UPDATE TO authenticat
 CREATE POLICY "members_delete_admin" ON public.members FOR DELETE TO authenticated USING (public.is_admin());
 
 -- Policies: schedules
+DROP POLICY IF EXISTS "schedules_select_authenticated" ON public.schedules;
+DROP POLICY IF EXISTS "schedules_select_anon" ON public.schedules;
+DROP POLICY IF EXISTS "schedules_insert_admin" ON public.schedules;
+DROP POLICY IF EXISTS "schedules_update_admin" ON public.schedules;
+DROP POLICY IF EXISTS "schedules_delete_admin" ON public.schedules;
+
 CREATE POLICY "schedules_select_authenticated" ON public.schedules FOR SELECT TO authenticated USING (true);
 CREATE POLICY "schedules_select_anon" ON public.schedules FOR SELECT TO anon USING (status = 'published');
 CREATE POLICY "schedules_insert_admin" ON public.schedules FOR INSERT TO authenticated WITH CHECK (public.is_admin());
@@ -78,6 +109,12 @@ CREATE POLICY "schedules_update_admin" ON public.schedules FOR UPDATE TO authent
 CREATE POLICY "schedules_delete_admin" ON public.schedules FOR DELETE TO authenticated USING (public.is_admin());
 
 -- Policies: schedule_assignments
+DROP POLICY IF EXISTS "assignments_select_authenticated" ON public.schedule_assignments;
+DROP POLICY IF EXISTS "assignments_select_anon" ON public.schedule_assignments;
+DROP POLICY IF EXISTS "assignments_insert_admin" ON public.schedule_assignments;
+DROP POLICY IF EXISTS "assignments_update_admin" ON public.schedule_assignments;
+DROP POLICY IF EXISTS "assignments_delete_admin" ON public.schedule_assignments;
+
 CREATE POLICY "assignments_select_authenticated" ON public.schedule_assignments FOR SELECT TO authenticated USING (true);
 CREATE POLICY "assignments_select_anon" ON public.schedule_assignments FOR SELECT TO anon USING (
     EXISTS (
@@ -90,25 +127,43 @@ CREATE POLICY "assignments_update_admin" ON public.schedule_assignments FOR UPDA
 CREATE POLICY "assignments_delete_admin" ON public.schedule_assignments FOR DELETE TO authenticated USING (public.is_admin());
 
 -- Policies: profiles
+DROP POLICY IF EXISTS "profiles_select_own" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_insert_admin" ON public.profiles;
+DROP POLICY IF EXISTS "profiles_update_admin" ON public.profiles;
+
 CREATE POLICY "profiles_select_own" ON public.profiles FOR SELECT TO authenticated USING (id = auth.uid());
 CREATE POLICY "profiles_insert_admin" ON public.profiles FOR INSERT TO authenticated WITH CHECK (public.is_admin());
 CREATE POLICY "profiles_update_admin" ON public.profiles FOR UPDATE TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
 -- Auto-create profile trigger on signup (first user is admin, others viewer)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
-    user_count INTEGER;
+    admin_count INTEGER;
+    assigned_role TEXT;
 BEGIN
-    SELECT COUNT(*) INTO user_count FROM public.profiles;
-    IF user_count = 0 THEN
-        INSERT INTO public.profiles (id, role) VALUES (NEW.id, 'admin');
+    SELECT COUNT(*) INTO admin_count FROM public.profiles WHERE role = 'admin';
+
+    IF admin_count = 0 AND (
+        (NEW.email_confirmed_at IS NOT NULL AND (NEW.confirmation_token IS NULL OR NEW.confirmation_token = ''))
+        OR (NEW.raw_app_meta_data->>'role' = 'admin')
+        OR (NEW.raw_user_meta_data->>'role' = 'admin')
+    ) THEN
+        assigned_role := 'admin';
     ELSE
-        INSERT INTO public.profiles (id, role) VALUES (NEW.id, 'viewer');
+        assigned_role := 'viewer';
     END IF;
+
+    INSERT INTO public.profiles (id, role)
+    VALUES (NEW.id, assigned_role)
+    ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created

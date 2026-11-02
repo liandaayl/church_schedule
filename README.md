@@ -56,10 +56,10 @@ Jadwal disusun per semester (6 bulan) dan dapat dipublikasikan agar seluruh jema
 
 ### 4. Dapatkan Kredensial API
 
-1. Buka menu **Settings** > **API** di dashboard Supabase.
+1. Buka menu **Project Settings** > **API** di dashboard Supabase.
 2. Catat dua nilai berikut:
    - **Project URL** — contoh: `https://xxxxx.supabase.co`
-   - **anon/public key** — string panjang yang dimulai dengan `eyJ...`
+   - **anon / public key** — key publik (dapat berupa string diawali `eyJ...` atau format baru `sb_publishable_...`)
 
 ---
 
@@ -67,11 +67,11 @@ Jadwal disusun per semester (6 bulan) dan dapat dipublikasikan agar seluruh jema
 
 ### Edit `js/config.js`
 
-Buka file `js/config.js` dan ganti placeholder dengan kredensial Supabase Anda:
+Buka file `js/config.js` dan sesuaikan kredensial Supabase Anda:
 
 ```javascript
-const SUPABASE_URL = 'https://xxxxx.supabase.co';      // Ganti dengan Project URL
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJI...';           // Ganti dengan anon/public key
+const SUPABASE_URL = 'https://xxxxx.supabase.co';      // Project URL (tanpa /rest/v1/)
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJI...';           // anon / public key
 ```
 
 ### Sesuaikan Nama Gereja
@@ -168,24 +168,28 @@ SELECT id, email FROM auth.users;
 ## Struktur File
 
 ```
-churchsched/
-├── index.html              # Halaman utama (jadwal publik)
-├── login.html              # Halaman login untuk admin
-├── admin.html              # Dashboard admin
-├── members.html            # Kelola data anggota jemaat
-├── generate.html           # Generate jadwal otomatis
-├── vercel.json             # Konfigurasi deployment Vercel
+churchschedc/
+├── index.html              # Halaman login untuk admin
+├── dashboard.html          # Dashboard admin (ringkasan statistik & menu cepat)
+├── members.html            # Kelola data anggota jemaat (CRUD & Import Excel)
+├── schedule.html           # Generator jadwal otomatis per semester
+├── schedule-view.html      # Peninjauan, editing, validasi, dan export jadwal
+├── public.html             # Halaman jadwal publik untuk jemaat (read-only)
+├── vercel.json             # Konfigurasi routing & deployment Vercel
 ├── README.md               # Dokumentasi proyek (file ini)
 ├── css/
-│   └── style.css           # Stylesheet utama
+│   └── style.css           # Stylesheet aplikasi responsif
 ├── js/
-│   ├── config.js           # Konfigurasi Supabase & aplikasi
-│   ├── auth.js             # Modul autentikasi (login/logout)
-│   ├── members.js          # CRUD data anggota
-│   ├── schedule.js         # Logika penjadwalan & generate
-│   └── app.js              # Logika utama & navigasi
+│   ├── config.js           # Konfigurasi Supabase & pengaturan ibadah
+│   ├── auth.js             # Autentikasi & proteksi halaman admin
+│   ├── members.js          # Pengelolaan data jemaat
+│   ├── scheduler.js        # Algoritma penjadwalan cerdas (constraint-based)
+│   ├── schedule-ui.js      # Antarmuka penampil & editor penugasan jadwal
+│   ├── excel-import.js     # Import data anggota dari file Excel
+│   ├── pdf-export.js       # Export jadwal ke dokumen PDF
+│   └── public.js           # Penampil jadwal publik untuk jemaat
 └── sql/
-    └── schema.sql          # Skema database PostgreSQL
+    └── schema.sql          # Skema database PostgreSQL, RLS, functions & triggers
 ```
 
 ---

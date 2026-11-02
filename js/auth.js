@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!supabaseClient) {
                 const detail = window._supabaseInitError ? ` (${window._supabaseInitError})` : '';
-                errorDiv.textContent = 'Koneksi Supabase belum aktif' + detail + '. Pastikan SUPABASE_ANON_KEY di js/config.js menggunakan API Key "anon public" (yang diawali "eyJ...") dari dashboard Supabase.';
+                errorDiv.textContent = 'Koneksi Supabase belum aktif' + detail + '. Pastikan SUPABASE_URL dan SUPABASE_ANON_KEY di js/config.js sudah diisi sesuai data Project Settings > API pada dashboard Supabase.';
                 errorDiv.classList.remove('hidden');
                 return;
             }
