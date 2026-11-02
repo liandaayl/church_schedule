@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buat Jadwal - ChurchSched</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-logo">⛪</span>
+                <h2>ChurchSched</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-item">
+                    <span class="material-icons-outlined">dashboard</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="members.html" class="nav-item">
+                    <span class="material-icons-outlined">group</span>
+                    <span>Anggota</span>
+                </a>
+                <a href="schedule.html" class="nav-item active">
+                    <span class="material-icons-outlined">event_note</span>
+                    <span>Buat Jadwal</span>
+                </a>
+                <a href="schedule-view.html" class="nav-item">
+                    <span class="material-icons-outlined">calendar_month</span>
+                    <span>Lihat Jadwal</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="btn-logout" id="btnLogout">
+                    <span class="material-icons-outlined">logout</span>
+                    <span>Keluar</span>
+                </button>
+            </div>
+        </aside>
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <button class="hamburger" id="hamburger">
+                    <span class="material-icons-outlined">menu</span>
+                </button>
+                <h1 class="page-title">Buat Jadwal</h1>
+                <div class="user-info">
+                    <span class="material-icons-outlined">account_circle</span>
+                    <span>Admin</span>
+                </div>
+            </header>
+
+            <div class="content-area">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Buat Jadwal Pelayanan</h2>
+                            <p class="card-subtitle">Pilih periode dan generate jadwal secara otomatis</p>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="scheduleYear">Tahun</label>
+                            <select id="scheduleYear" class="form-select"></select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="scheduleSemester">Periode</label>
+                            <select id="scheduleSemester" class="form-select">
+                                <option value="1">Semester 1 (Januari - Juni)</option>
+                                <option value="2">Semester 2 (Juli - Desember)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <p class="text-sm text-muted mb-2" id="sundayCount"></p>
+
+                    <div id="existingScheduleAlert" class="alert alert-warning hidden"></div>
+
+                    <button id="generateBtn" class="btn btn-primary btn-lg" style="width:100%; justify-content:center;">
+                        <span class="material-icons-outlined">auto_fix_high</span>
+                        Generate Jadwal Otomatis
+                    </button>
+                </div>
+
+                <div class="card hidden" id="generateProgress">
+                    <div class="card-header">
+                        <h2 class="card-title">⏳ Proses Generate</h2>
+                    </div>
+                    <div class="progress-container">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+                    <p class="progress-text" id="progressText">Mempersiapkan...</p>
+                    <p class="text-sm text-muted" id="progressDetail"></p>
+                </div>
+
+                <div class="card hidden" id="generateResults"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/scheduler.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuth();
+            if (!user) return;
+            initSchedulePage();
+        });
+    </script>
+</body>
+</html>
+

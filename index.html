@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - ChurchSched</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+    <div class="login-page">
+        <div class="login-card">
+            <div class="login-logo">
+                <span>⛪</span>
+                <h1>ChurchSched</h1>
+                <p>Sistem Penjadwalan Pelayanan Gereja</p>
+            </div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label class="form-label" for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" class="form-input" placeholder="admin@email.com" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" class="form-input" placeholder="••••••••" required>
+                </div>
+
+                <div id="loginError" class="alert alert-danger hidden"></div>
+
+                <button type="submit" id="loginBtn" class="btn btn-primary" style="width:100%; justify-content:center; margin-top:8px;">
+                    <span class="material-icons-outlined">login</span>
+                    Masuk
+                </button>
+            </form>
+
+            <div style="text-align:center; margin-top:24px; padding-top:16px; border-top:1px solid var(--border-light);">
+                <a href="public.html" style="color:var(--text-light); font-size:13px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+                    <span class="material-icons-outlined" style="font-size:16px;">public</span>
+                    Lihat Jadwal Publik →
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+</body>
+</html>

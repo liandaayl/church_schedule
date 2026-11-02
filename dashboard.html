@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - ChurchSched</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-logo">⛪</span>
+                <h2>ChurchSched</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-item active">
+                    <span class="material-icons-outlined">dashboard</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="members.html" class="nav-item">
+                    <span class="material-icons-outlined">group</span>
+                    <span>Anggota</span>
+                </a>
+                <a href="schedule.html" class="nav-item">
+                    <span class="material-icons-outlined">event_note</span>
+                    <span>Buat Jadwal</span>
+                </a>
+                <a href="schedule-view.html" class="nav-item">
+                    <span class="material-icons-outlined">calendar_month</span>
+                    <span>Lihat Jadwal</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="btn-logout" id="btnLogout">
+                    <span class="material-icons-outlined">logout</span>
+                    <span>Keluar</span>
+                </button>
+            </div>
+        </aside>
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <button class="hamburger" id="hamburger">
+                    <span class="material-icons-outlined">menu</span>
+                </button>
+                <h1 class="page-title">Dashboard</h1>
+                <div class="user-info">
+                    <span class="material-icons-outlined">account_circle</span>
+                    <span>Admin</span>
+                </div>
+            </header>
+
+            <div class="content-area">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon blue">
+                            <span class="material-icons-outlined">group</span>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="totalMembers">-</div>
+                            <div class="stat-label">Total Anggota</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green">
+                            <span class="material-icons-outlined">calendar_today</span>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="totalSchedules">-</div>
+                            <div class="stat-label">Total Jadwal</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon gold">
+                            <span class="material-icons-outlined">publish</span>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="publishedSchedules">-</div>
+                            <div class="stat-label">Jadwal Published</div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon purple">
+                            <span class="material-icons-outlined">date_range</span>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="activePeriod">-</div>
+                            <div class="stat-label">Periode Terakhir</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Menu Cepat</h2>
+                    </div>
+                    <div class="quick-actions">
+                        <a href="members.html" class="action-card">
+                            <div class="action-icon"><span class="material-icons-outlined">group_add</span></div>
+                            <div class="action-title">Kelola Anggota</div>
+                            <div class="action-desc">Tambah, edit, hapus data anggota</div>
+                        </a>
+                        <a href="schedule.html" class="action-card">
+                            <div class="action-icon"><span class="material-icons-outlined">auto_fix_high</span></div>
+                            <div class="action-title">Buat Jadwal</div>
+                            <div class="action-desc">Generate jadwal otomatis</div>
+                        </a>
+                        <a href="schedule-view.html" class="action-card">
+                            <div class="action-icon"><span class="material-icons-outlined">edit_calendar</span></div>
+                            <div class="action-title">Lihat Jadwal</div>
+                            <div class="action-desc">Lihat, edit, dan publish jadwal</div>
+                        </a>
+                        <a href="public.html" class="action-card">
+                            <div class="action-icon"><span class="material-icons-outlined">public</span></div>
+                            <div class="action-title">Jadwal Publik</div>
+                            <div class="action-desc">Halaman publik untuk anggota</div>
+                        </a>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Jadwal Terbaru</h2>
+                    </div>
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Tahun</th>
+                                    <th>Periode</th>
+                                    <th>Status</th>
+                                    <th>Dibuat</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentSchedulesBody">
+                                <tr><td colspan="4" class="text-center text-muted" style="padding:24px;">Memuat...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuth();
+            if (!user) return;
+            await loadDashboardData();
+        });
+
+        async function loadDashboardData() {
+            try {
+                const { count: memberCount } = await supabaseClient
+                    .from('members')
+                    .select('*', { count: 'exact', head: true });
+                document.getElementById('totalMembers').textContent = memberCount || 0;
+
+                const { data: schedules } = await supabaseClient
+                    .from('schedules')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                document.getElementById('totalSchedules').textContent = schedules?.length || 0;
+
+                const published = schedules?.filter(s => s.status === 'published') || [];
+                document.getElementById('publishedSchedules').textContent = published.length;
+
+                const latest = schedules?.[0];
+                if (latest) {
+                    const semLabel = latest.semester === 1 ? 'Jan-Jun' : 'Jul-Des';
+                    document.getElementById('activePeriod').textContent = semLabel + ' ' + latest.year;
+                } else {
+                    document.getElementById('activePeriod').textContent = '-';
+                }
+
+                const tbody = document.getElementById('recentSchedulesBody');
+                if (tbody && schedules && schedules.length > 0) {
+                    tbody.innerHTML = schedules.slice(0, 5).map(s => {
+                        const semLabel = s.semester === 1 ? 'Januari - Juni' : 'Juli - Desember';
+                        const statusClass = s.status === 'published' ? 'badge-success' : 'badge-warning';
+                        const statusLabel = s.status === 'published' ? 'Published' : 'Draft';
+                        return '<tr>' +
+                            '<td>' + s.year + '</td>' +
+                            '<td>' + semLabel + '</td>' +
+                            '<td><span class="badge ' + statusClass + '">' + statusLabel + '</span></td>' +
+                            '<td>' + new Date(s.created_at).toLocaleDateString('id-ID') + '</td>' +
+                            '</tr>';
+                    }).join('');
+                } else if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted" style="padding:24px;">Belum ada jadwal</td></tr>';
+                }
+            } catch (err) {
+                console.error('Dashboard error:', err);
+            }
+        }
+    </script>
+</body>
+</html>
+

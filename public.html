@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jadwal Pelayanan - ChurchSched</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+    <div class="public-page">
+        <header class="public-header">
+            <h1>⛪ Jadwal Pelayanan Gereja</h1>
+            <p id="publicChurchName">Gereja</p>
+        </header>
+
+        <div class="public-content">
+            <div class="public-filters">
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label" for="publicYear">Tahun</label>
+                    <select id="publicYear" class="form-select"></select>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                    <label class="form-label" for="publicSemester">Periode</label>
+                    <select id="publicSemester" class="form-select">
+                        <option value="1">Semester 1 (Jan - Jun)</option>
+                        <option value="2">Semester 2 (Jul - Des)</option>
+                    </select>
+                </div>
+                <button id="loadPublicBtn" class="btn btn-primary" style="margin-top:auto;">
+                    <span class="material-icons-outlined">search</span>
+                    Lihat Jadwal
+                </button>
+            </div>
+
+            <div id="publicPeriodLabel" class="hidden" style="margin-bottom:16px; font-size:16px; font-weight:600; color:var(--text);"></div>
+
+            <div id="publicTableContainer" class="hidden">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th style="width:40px;">No</th>
+                                <th>Tanggal</th>
+                                <th>Liturgos</th>
+                                <th>Kolektan</th>
+                                <th>Singer</th>
+                            </tr>
+                        </thead>
+                        <tbody id="publicTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="publicEmptyState" class="empty-state hidden">
+                <span class="material-icons-outlined">event_busy</span>
+                <h3>Belum Ada Jadwal</h3>
+                <p>Jadwal pelayanan untuk periode ini belum tersedia.</p>
+            </div>
+        </div>
+
+        <footer class="public-footer">
+            <p>ChurchSched — Sistem Penjadwalan Pelayanan Gereja</p>
+            <p style="margin-top:8px;">
+                <a href="index.html" style="color:var(--text-lighter); text-decoration:none;">
+                    <span class="material-icons-outlined" style="font-size:14px; vertical-align:middle;">lock</span>
+                    Admin Login
+                </a>
+            </p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/config.js"></script>
+    <script src="js/public.js"></script>
+</body>
+</html>
+

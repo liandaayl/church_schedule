@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lihat Jadwal - ChurchSched</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-logo">⛪</span>
+                <h2>ChurchSched</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-item">
+                    <span class="material-icons-outlined">dashboard</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="members.html" class="nav-item">
+                    <span class="material-icons-outlined">group</span>
+                    <span>Anggota</span>
+                </a>
+                <a href="schedule.html" class="nav-item">
+                    <span class="material-icons-outlined">event_note</span>
+                    <span>Buat Jadwal</span>
+                </a>
+                <a href="schedule-view.html" class="nav-item active">
+                    <span class="material-icons-outlined">calendar_month</span>
+                    <span>Lihat Jadwal</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="btn-logout" id="btnLogout">
+                    <span class="material-icons-outlined">logout</span>
+                    <span>Keluar</span>
+                </button>
+            </div>
+        </aside>
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <button class="hamburger" id="hamburger">
+                    <span class="material-icons-outlined">menu</span>
+                </button>
+                <h1 class="page-title">Lihat Jadwal</h1>
+                <div class="user-info">
+                    <span class="material-icons-outlined">account_circle</span>
+                    <span>Admin</span>
+                </div>
+            </header>
+
+            <div class="content-area">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Jadwal Pelayanan</h2>
+                            <p class="card-subtitle">Pilih periode untuk melihat jadwal</p>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label" for="filterYear">Tahun</label>
+                            <select id="filterYear" class="form-select" style="width:120px;"></select>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label class="form-label" for="filterSemester">Periode</label>
+                            <select id="filterSemester" class="form-select" style="width:220px;">
+                                <option value="1">Semester 1 (Jan - Jun)</option>
+                                <option value="2">Semester 2 (Jul - Des)</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" id="loadScheduleBtn">
+                            <span class="material-icons-outlined">search</span>
+                            Muat Jadwal
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card hidden" id="scheduleInfo">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <span style="font-size:16px; font-weight:600;" id="schedulePeriodLabel"></span>
+                            <span id="scheduleStatusBadge" class="badge badge-warning">Draft</span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-success btn-sm" id="publishBtn">
+                                <span class="material-icons-outlined">publish</span>
+                                Publish
+                            </button>
+                            <button class="btn btn-primary btn-sm" id="exportPdfBtn">
+                                <span class="material-icons-outlined">picture_as_pdf</span>
+                                Export PDF
+                            </button>
+                            <button class="btn btn-danger btn-sm" id="deleteScheduleBtn">
+                                <span class="material-icons-outlined">delete</span>
+                                Hapus
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card hidden" id="scheduleTableContainer">
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:40px;">No</th>
+                                    <th>Tanggal</th>
+                                    <th>Liturgos</th>
+                                    <th>Kolektan</th>
+                                    <th>Singer</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scheduleTableBody">
+                                <tr><td colspan="5" class="text-center text-muted" style="padding:32px;">Pilih periode lalu klik "Muat Jadwal"</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card hidden" id="validationPanel">
+                    <div class="card-header">
+                        <h2 class="card-title">✅ Validasi Jadwal</h2>
+                    </div>
+                    <div id="validationList"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="modal-overlay" id="editModal">
+        <div class="modal" style="max-width:460px;">
+            <div class="modal-header">
+                <h3>Edit Penugasan</h3>
+                <button class="modal-close btn-cancel-edit">
+                    <span class="material-icons-outlined">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Tanggal</label>
+                    <p id="editDate" class="font-bold"></p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Posisi</label>
+                    <p id="editRole" class="font-bold"></p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Anggota Saat Ini</label>
+                    <p id="editCurrentMember" class="font-bold"></p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="editNewMember">Ganti Dengan</label>
+                    <select id="editNewMember" class="form-select">
+                        <option value="">— Pilih anggota —</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-cancel-edit">Batal</button>
+                <button type="button" class="btn btn-primary" id="saveEditBtn">
+                    <span class="material-icons-outlined">save</span>
+                    Simpan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/schedule-ui.js"></script>
+    <script src="js/pdf-export.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuth();
+            if (!user) return;
+            initScheduleViewPage();
+        });
+    </script>
+</body>
+</html>
+

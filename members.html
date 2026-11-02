@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Anggota - ChurchSched</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-logo">⛪</span>
+                <h2>ChurchSched</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="dashboard.html" class="nav-item">
+                    <span class="material-icons-outlined">dashboard</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="members.html" class="nav-item active">
+                    <span class="material-icons-outlined">group</span>
+                    <span>Anggota</span>
+                </a>
+                <a href="schedule.html" class="nav-item">
+                    <span class="material-icons-outlined">event_note</span>
+                    <span>Buat Jadwal</span>
+                </a>
+                <a href="schedule-view.html" class="nav-item">
+                    <span class="material-icons-outlined">calendar_month</span>
+                    <span>Lihat Jadwal</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="btn-logout" id="btnLogout">
+                    <span class="material-icons-outlined">logout</span>
+                    <span>Keluar</span>
+                </button>
+            </div>
+        </aside>
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <button class="hamburger" id="hamburger">
+                    <span class="material-icons-outlined">menu</span>
+                </button>
+                <h1 class="page-title">Data Anggota</h1>
+                <div class="user-info">
+                    <span class="material-icons-outlined">account_circle</span>
+                    <span>Admin</span>
+                </div>
+            </header>
+
+            <div class="content-area">
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <h2 class="card-title">Daftar Anggota</h2>
+                            <p class="card-subtitle" id="memberCount">Memuat...</p>
+                        </div>
+                        <div class="btn-group">
+                            <div class="search-box">
+                                <span class="material-icons-outlined">search</span>
+                                <input type="text" id="searchInput" class="form-input" placeholder="Cari nama..." style="width:200px;">
+                            </div>
+                            <button class="btn btn-secondary" id="importExcelBtn">
+                                <span class="material-icons-outlined">upload_file</span>
+                                Import Excel
+                            </button>
+                            <button class="btn btn-primary" id="addMemberBtn">
+                                <span class="material-icons-outlined">person_add</span>
+                                Tambah Anggota
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>No</th>
+                                    <th>Nama</th>
+                                    <th>Gender</th>
+                                    <th>Liturgos</th>
+                                    <th>Kolektan</th>
+                                    <th>Singer</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="membersTableBody">
+                                <tr><td colspan="7" class="text-center text-muted" style="padding:32px;">
+                                    <div class="spinner" style="margin:0 auto 12px;"></div>
+                                    Memuat data...
+                                </td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="modal-overlay" id="memberModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="memberModalTitle">Tambah Anggota</h3>
+                <button class="modal-close btn-cancel-member">
+                    <span class="material-icons-outlined">close</span>
+                </button>
+            </div>
+            <form id="memberForm">
+                <div class="modal-body">
+                    <input type="hidden" id="memberId">
+                    <div class="form-group">
+                        <label class="form-label" for="memberName">Nama Lengkap</label>
+                        <input type="text" id="memberName" class="form-input" placeholder="Masukkan nama lengkap" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="memberGender">Gender</label>
+                        <select id="memberGender" class="form-select">
+                            <option value="L">Laki-laki</option>
+                            <option value="P">Perempuan</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Kemampuan Pelayanan</label>
+                        <div style="display:flex; flex-direction:column; gap:10px; margin-top:4px;">
+                            <label class="form-checkbox">
+                                <input type="checkbox" id="cbLiturgos">
+                                <span class="tag tag-liturgos">Liturgos</span>
+                            </label>
+                            <label class="form-checkbox">
+                                <input type="checkbox" id="cbKolektan">
+                                <span class="tag tag-kolektan">Kolektan</span>
+                            </label>
+                            <label class="form-checkbox">
+                                <input type="checkbox" id="cbSinger">
+                                <span class="tag tag-singer">Singer</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-cancel-member">Batal</button>
+                    <button type="submit" class="btn btn-primary" id="saveMemberBtn">
+                        <span class="material-icons-outlined">save</span>
+                        Simpan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="importModal">
+        <div class="modal" style="max-width:640px;">
+            <div class="modal-header">
+                <h3>Import Data dari Excel</h3>
+                <button class="modal-close btn-cancel-import">
+                    <span class="material-icons-outlined">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <span class="material-icons-outlined">info</span>
+                    <div>
+                        <strong>Format kolom Excel yang diharapkan:</strong><br>
+                        Nama, Gender (L/P), Liturgos (1/0), Kolektan (1/0), Singer (1/0)
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="importFile">Pilih File</label>
+                    <input type="file" id="importFile" class="form-input" accept=".xlsx,.xls,.csv">
+                </div>
+                <div id="importPreview" class="hidden" style="max-height:300px; overflow-y:auto;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-cancel-import">Batal</button>
+                <button type="button" class="btn btn-primary" id="confirmImportBtn" disabled>
+                    <span class="material-icons-outlined">upload</span>
+                    Import
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal" style="max-width:420px;">
+            <div class="modal-header">
+                <h3>Hapus Anggota</h3>
+                <button class="modal-close btn-cancel-delete">
+                    <span class="material-icons-outlined">close</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Apakah Anda yakin ingin menghapus anggota <strong id="deleteMemberName"></strong>?</p>
+                <p class="text-sm text-muted mt-1">Tindakan ini tidak dapat dibatalkan.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-cancel-delete">Batal</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <span class="material-icons-outlined">delete</span>
+                    Hapus
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/members.js"></script>
+    <script src="js/excel-import.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = await checkAuth();
+            if (!user) return;
+            await initMembersPage();
+        });
+    </script>
+</body>
+</html>
+
